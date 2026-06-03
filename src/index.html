@@ -18,12 +18,16 @@
         <button id="reload-btn" class="nav-btn" title="Actualiser">&#x21bb;</button>
         <button id="home-btn" class="nav-btn" title="Accueil">&#x2302;</button>
         <button id="new-tab-btn" class="nav-btn" title="Nouvel onglet">+</button>
+        <button id="downloads-btn" class="nav-btn" title="Téléchargements">⇣</button>
       </div>
       
       <form id="address-form" class="address-bar-container">
         <input type="text" id="address-input" placeholder="Rechercher ou saisir une URL (ex: https://google.com)" required>
         <button type="submit" class="go-btn">Visiter</button>
       </form>
+      <div class="header-actions">
+        <button id="menu-btn" class="menu-btn" title="Menu">☰</button>
+      </div>
 
     </header>
 
@@ -49,6 +53,19 @@
         <div id="local-interfaces-container">
           <!-- Rendered dynamically by JS -->
           <div class="loading-spinner">Recherche des interfaces réseau...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Downloads Panel (Collapsible / Overlay) -->
+    <div id="downloads-panel" class="network-panel hidden">
+      <div class="panel-header">
+        <h3>⬇️ Téléchargements</h3>
+        <button id="close-downloads-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="panel-content">
+        <div id="downloads-list">
+          <div class="loading-spinner">Aucun téléchargement pour le moment.</div>
         </div>
       </div>
     </div>

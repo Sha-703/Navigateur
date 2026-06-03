@@ -27,6 +27,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleDevTools: () => ipcRenderer.send('toggle-devtools'),
 
   // openContextMenu() : envoie un message IPC pour afficher le menu contextuel
-  openContextMenu: () => ipcRenderer.send('show-context-menu')
+  openContextMenu: () => ipcRenderer.send('show-context-menu'),
+
+  // Permet au renderer d'écouter les actions du menu applicatif
+  onAppMenu: (callback) => {
+    ipcRenderer.on('app-menu', (event, action) => {
+      try { callback(action); } catch (e) { /* ignore */ }
+    });
+  },
+
+  // Ecoute les événements de progression de téléchargement
+  onDownloadProgress: (callback) => {
+    ipcRenderer.on('download-progress', (event, data) => {
+      try { callback(data); } catch (e) { /* ignore */ }
+    });
+  },
+
+  // Ecoute la fin des téléchargements
+  onDownloadDone: (callback) => {
+    ipcRenderer.on('download-done', (event, data) => {
+      try { callback(data); } catch (e) { /* ignore */ }
+    });
+  },
+
+  // Ouvrir le dossier d'un téléchargement (path absolu)
+  openPath: (filePath) => ipcRenderer.invoke('open-path', filePath)
 
 });

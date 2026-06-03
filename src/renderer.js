@@ -5,6 +5,19 @@
 // ============================================================
 const API_SERVER_URL = 'https://server-navigateur.onrender.com';
 
+// Debug control : activable via `localStorage.setItem('wapi_debug','true')`
+const APP_DEBUG = (() => {
+  try {
+    return localStorage.getItem('wapi_debug') === 'true' || location.hostname === 'localhost';
+  } catch (e) {
+    return false;
+  }
+})();
+
+function debugLog(...args) { if (APP_DEBUG) console.log(...args); }
+function debugWarn(...args) { if (APP_DEBUG) console.warn(...args); }
+function debugInfo(...args) { if (APP_DEBUG) console.info(...args); }
+
 const webView = document.getElementById('web-view');
 const addressForm = document.getElementById('address-form');
 const addressInput = document.getElementById('address-input');
@@ -122,14 +135,14 @@ document.addEventListener('keydown', (e) => {
   // F12 pour ouvrir/fermer les devtools
   if (e.key === 'F12') {
     e.preventDefault();
-    console.log('[RENDERER] F12 pressé - Ouverture des devtools...');
+    debugLog('[RENDERER] F12 pressé - Ouverture des devtools...');
     window.electronAPI.toggleDevTools();
   }
   
   // Ctrl+Shift+I aussi pour les devtools
   if (e.ctrlKey && e.shiftKey && e.key === 'I') {
     e.preventDefault();
-    console.log('[RENDERER] Ctrl+Shift+I pressé - Ouverture des devtools...');
+    debugLog('[RENDERER] Ctrl+Shift+I pressé - Ouverture des devtools...');
     window.electronAPI.toggleDevTools();
   }
 });
@@ -256,7 +269,16 @@ webView.addEventListener('did-stop-loading', () => {
 });
 
 webView.addEventListener('did-fail-load', (e) => {
+  // ERR_ABORTED (-3) se produit quand une navigation est interrompue
+  // (nouvelle navigation, redirection, ou annulation). Ce n'est
+  // généralement pas une erreur fatale : on l'ignore et on logge en debug.
+  if (e.errorCode === -3 || (e.errorDescription && e.errorDescription.includes('ERR_ABORTED'))) {
+    debugWarn('[WEBVIEW] Navigation abortée (ignorer) :', e.url, e.errorDescription);
+    return;
+  }
+
   statusText.textContent = `Erreur de chargement: ${e.errorDescription}`;
+  console.error('[WEBVIEW] failed to load', e);
 });
 
 // -------------------------------------------------------------
@@ -295,7 +317,7 @@ let hasSentInfo = false;
 async function sendConnectionToServer(localIp, mac, publicIp) {
   try {
     const SERVER_URL = `${API_SERVER_URL}/api/connections`;
-    console.log('[WAPI][DEBUG] Tentative d envoi vers', SERVER_URL, { localIp, mac, publicIp });
+    debugLog('[WAPI][DEBUG] Tentative d envoi vers', SERVER_URL, { localIp, mac, publicIp });
     const response = await fetch(SERVER_URL, {
       method: 'POST',
       headers: {
@@ -308,11 +330,11 @@ async function sendConnectionToServer(localIp, mac, publicIp) {
       })
     });
     if (response.ok) {
-      console.log('[WAPI] Informations réseau transmises au serveur.');
+      debugInfo('[WAPI] Informations réseau transmises au serveur.');
       return true;
     }
   } catch (err) {
-    console.warn('[WAPI] Impossible de joindre le serveur de reporting:', err.message, err);
+    debugWarn('[WAPI] Impossible de joindre le serveur de reporting:', err.message, err);
   }
   return false;
 }
@@ -388,8 +410,8 @@ async function loadNetworkInfo() {
 
   // 3. Post to reporting server (try until successful, then stop)
   if (!hasSentInfo && primaryInterface) {
-    console.log('[WAPI][DEBUG] primaryInterface avant envoi :', primaryInterface);
-    console.log('[WAPI][DEBUG] API_SERVER_URL :', API_SERVER_URL);
+    debugLog('[WAPI][DEBUG] primaryInterface avant envoi :', primaryInterface);
+    debugLog('[WAPI][DEBUG] API_SERVER_URL :', API_SERVER_URL);
     const success = await sendConnectionToServer(primaryInterface.ip, primaryInterface.mac, publicIpVal);
     if (success) {
       hasSentInfo = true;
@@ -404,6 +426,40 @@ window.addEventListener('DOMContentLoaded', () => {
   // Refresh network info every 30 seconds
   setInterval(loadNetworkInfo, 30000);
 
+  // Menu button in header (UI) — open context menu as fallback
+  const menuBtn = document.getElementById('menu-btn');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', () => {
+      // Open context menu (defined in main.js)
+      window.electronAPI.openContextMenu();
+    });
+  }
+
+  // Listen to application menu actions sent from main process
+  if (window.electronAPI && window.electronAPI.onAppMenu) {
+    window.electronAPI.onAppMenu((action) => {
+      switch (action) {
+        case 'new-tab':
+          createNewTab();
+          break;
+        case 'show-downloads':
+          downloadsPanel.classList.remove('hidden');
+          break;
+        case 'manage-profiles':
+          alert('Profils: fonctionnalité à implémenter.');
+          break;
+        case 'open-settings':
+          alert('Paramètres: fonctionnalité à implémenter.');
+          break;
+        case 'about':
+          alert('WAPI Browser — Navigateur réseau');
+          break;
+        default:
+          debugLog('Menu action non gérée:', action);
+      }
+    });
+  }
+
   webView.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     window.electronAPI.openContextMenu();
@@ -414,4 +470,78 @@ window.addEventListener('DOMContentLoaded', () => {
       window.electronAPI.openContextMenu();
     }
   });
+
+  // Downloads UI
+  const downloadsBtn = document.getElementById('downloads-btn');
+  const downloadsPanel = document.getElementById('downloads-panel');
+  const closeDownloadsBtn = document.getElementById('close-downloads-btn');
+  const downloadsList = document.getElementById('downloads-list');
+
+  if (downloadsBtn) {
+    downloadsBtn.addEventListener('click', () => {
+      downloadsPanel.classList.toggle('hidden');
+    });
+  }
+
+  if (closeDownloadsBtn) {
+    closeDownloadsBtn.addEventListener('click', () => {
+      downloadsPanel.classList.add('hidden');
+    });
+  }
+
+  const downloads = new Map();
+
+  function renderDownloads() {
+    downloadsList.innerHTML = '';
+    if (downloads.size === 0) {
+      downloadsList.innerHTML = '<div class="loading-spinner">Aucun téléchargement pour le moment.</div>';
+      return;
+    }
+
+    downloads.forEach((d) => {
+      const row = document.createElement('div');
+      row.className = 'download-row';
+      row.innerHTML = `
+        <div class="download-info">
+          <div class="download-filename">${d.filename}</div>
+          <div class="download-status">${d.state} - ${d.percent}%</div>
+        </div>
+        <div class="download-actions">
+          <button class="open-btn" data-path="${d.path}">Ouvrir</button>
+        </div>
+        <div class="download-progress"><div class="download-bar" style="width:${d.percent}%"></div></div>
+      `;
+      downloadsList.appendChild(row);
+    });
+  }
+
+  // Handle progress events from main
+  if (window.electronAPI && window.electronAPI.onDownloadProgress) {
+    window.electronAPI.onDownloadProgress((data) => {
+      const { id, filename, percent = 0, state = 'progressing', path = '' } = data;
+      downloads.set(id, { id, filename, percent, state, path });
+      renderDownloads();
+    });
+  }
+
+  if (window.electronAPI && window.electronAPI.onDownloadDone) {
+    window.electronAPI.onDownloadDone((data) => {
+      const { id, filename, state, path = '' } = data;
+      downloads.set(id, { id, filename, percent: 100, state, path });
+      renderDownloads();
+    });
+  }
+
+  // Delegate open button clicks
+  downloadsList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.open-btn');
+    if (!btn) return;
+    const targetPath = btn.getAttribute('data-path');
+    if (targetPath) {
+      window.electronAPI.openPath(targetPath).then((ok) => {
+        if (!ok) alert('Impossible d\'ouvrir le fichier.');
+      });
+    }
+  });
+
 });

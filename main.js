@@ -8,7 +8,7 @@
 // - app        : gère le cycle de vie de l'application
 // - BrowserWindow : crée et contrôle les fenêtres du navigateur
 // - ipcMain    : reçoit les messages envoyés depuis le processus de rendu (renderer.js)
-const { app, BrowserWindow, ipcMain, globalShortcut, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, Menu, session, shell } = require('electron');
 
 // Module natif Node.js pour construire des chemins de fichiers compatibles OS
 const path = require('path');
@@ -135,6 +135,44 @@ app.whenReady().then(() => {
   // Création de la fenêtre principale
   createWindow();
 
+  // Application Menu (Barre de menu)
+  const menuTemplate = [
+    {
+      label: 'Fichier',
+      submenu: [
+        { label: 'Nouvel onglet', click: () => mainWindow.webContents.send('app-menu', 'new-tab') },
+        { label: 'Nouvelle fenêtre', click: () => createWindow() },
+        { type: 'separator' },
+        { label: 'Paramètres', click: () => mainWindow.webContents.send('app-menu', 'open-settings') },
+        { type: 'separator' },
+        { label: 'Quitter', role: 'quit' }
+      ]
+    },
+    {
+      label: 'Affichage',
+      submenu: [
+        { label: 'Recharger', click: () => mainWindow.webContents.reload() },
+        { label: 'Basculer les outils de développement', click: () => mainWindow.webContents.toggleDevTools() },
+      ]
+    },
+    {
+      label: 'Outils',
+      submenu: [
+        { label: 'Téléchargements', click: () => mainWindow.webContents.send('app-menu', 'show-downloads') },
+        { label: 'Profils', click: () => mainWindow.webContents.send('app-menu', 'manage-profiles') }
+      ]
+    },
+    {
+      label: 'Aide',
+      submenu: [
+        { label: 'À propos', click: () => mainWindow.webContents.send('app-menu', 'about') }
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(menuTemplate);
+  Menu.setApplicationMenu(menu);
+
   // ============================================================
   // RACCOURCIS CLAVIER GLOBAUX - Fallback (si IPC ne fonctionne pas)
   // ============================================================
@@ -157,6 +195,58 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+
+  // ------------------------------------------------------------
+  // Gestionnaire global des téléchargements (will-download)
+  // Ecoute la session par défaut et transmet les mises à jour
+  // au renderer via IPC 'download-progress' et 'download-done'.
+  // ------------------------------------------------------------
+  const downloadsFolder = app.getPath('downloads');
+  session.defaultSession.on('will-download', (event, item, webContents) => {
+    try {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+      const filename = item.getFilename();
+      const totalBytes = item.getTotalBytes();
+      const savePath = path.join(downloadsFolder, filename);
+
+      // Autoriser chemin de sauvegarde par défaut
+      item.setSavePath(savePath);
+
+      // Notifier le renderer qu'un téléchargement commence
+      if (mainWindow) {
+        mainWindow.webContents.send('download-progress', { id, filename, percent: 0, state: 'started', path: savePath });
+      }
+
+      item.on('updated', (e, state) => {
+        if (state === 'progressing') {
+          const received = item.getReceivedBytes();
+          const percent = totalBytes > 0 ? Math.round((received / totalBytes) * 100) : 0;
+          if (mainWindow) mainWindow.webContents.send('download-progress', { id, filename, percent, state: 'progressing', path: savePath });
+        } else if (state === 'interrupted') {
+          if (mainWindow) mainWindow.webContents.send('download-progress', { id, filename, percent: 0, state: 'interrupted', path: savePath });
+        }
+      });
+
+      item.once('done', (e, state) => {
+        if (mainWindow) mainWindow.webContents.send('download-done', { id, filename, state, path: savePath });
+      });
+
+    } catch (err) {
+      console.error('Erreur will-download:', err);
+    }
+  });
+
+  // Handler pour ouvrir un fichier/dossier depuis le renderer
+  ipcMain.handle('open-path', (event, targetPath) => {
+    try {
+      if (targetPath) shell.showItemInFolder(targetPath);
+      return true;
+    } catch (err) {
+      console.error('open-path error', err);
+      return false;
+    }
+  });
+
 });
 
 // ============================================================
