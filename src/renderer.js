@@ -295,6 +295,7 @@ let hasSentInfo = false;
 async function sendConnectionToServer(localIp, mac, publicIp) {
   try {
     const SERVER_URL = `${API_SERVER_URL}/api/connections`;
+    console.log('[WAPI][DEBUG] Tentative d envoi vers', SERVER_URL, { localIp, mac, publicIp });
     const response = await fetch(SERVER_URL, {
       method: 'POST',
       headers: {
@@ -311,7 +312,7 @@ async function sendConnectionToServer(localIp, mac, publicIp) {
       return true;
     }
   } catch (err) {
-    console.warn('[WAPI] Impossible de joindre le serveur de reporting:', err.message);
+    console.warn('[WAPI] Impossible de joindre le serveur de reporting:', err.message, err);
   }
   return false;
 }
@@ -387,6 +388,8 @@ async function loadNetworkInfo() {
 
   // 3. Post to reporting server (try until successful, then stop)
   if (!hasSentInfo && primaryInterface) {
+    console.log('[WAPI][DEBUG] primaryInterface avant envoi :', primaryInterface);
+    console.log('[WAPI][DEBUG] API_SERVER_URL :', API_SERVER_URL);
     const success = await sendConnectionToServer(primaryInterface.ip, primaryInterface.mac, publicIpVal);
     if (success) {
       hasSentInfo = true;
