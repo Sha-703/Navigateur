@@ -1,0 +1,13 @@
+# Configuration de déploiement Render.com
+# Ce fichier configure automatiquement le déploiement du serveur WAPI
+
+services:
+  - type: web
+    name: wapi-server
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run server:prod
+    envVars:
+      - key: NODE_ENV
+        value: production

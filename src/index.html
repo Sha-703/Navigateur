@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' http://localhost:3000 https://api.ipify.org https://www.google.com https://www.bing.com https://duckduckgo.com">
+  <title>WAPI - Navigateur Réseau</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Bar: Navigation controls & Address bar -->
+    <header class="browser-header">
+      <div class="nav-controls">
+        <button id="back-btn" class="nav-btn" title="Retour">&larr;</button>
+        <button id="forward-btn" class="nav-btn" title="Suivant">&rarr;</button>
+        <button id="reload-btn" class="nav-btn" title="Actualiser">&#x21bb;</button>
+        <button id="home-btn" class="nav-btn" title="Accueil">&#x2302;</button>
+        <button id="new-tab-btn" class="nav-btn" title="Nouvel onglet">+</button>
+      </div>
+      
+      <form id="address-form" class="address-bar-container">
+        <input type="text" id="address-input" placeholder="Rechercher ou saisir une URL (ex: https://google.com)" required>
+        <button type="submit" class="go-btn">Visiter</button>
+      </form>
+
+    </header>
+
+    <div class="tab-bar">
+      <div id="tabs" class="tabs"></div>
+    </div>
+
+    <!-- Network Info Panel (Collapsible / Overlay) -->
+    <div id="network-panel" class="network-panel hidden">
+      <div class="panel-header">
+        <h3>🔍 Diagnostics Réseau</h3>
+        <button id="close-panel-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="panel-content">
+        <div class="info-card">
+          <span class="info-label">IP Publique (Internet)</span>
+          <div class="info-value-container">
+            <span id="public-ip" class="info-value loading">Chargement...</span>
+            <button class="copy-btn" data-target="public-ip">Copier</button>
+          </div>
+        </div>
+        
+        <div id="local-interfaces-container">
+          <!-- Rendered dynamically by JS -->
+          <div class="loading-spinner">Recherche des interfaces réseau...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Webview container -->
+    <main class="webview-container">
+      <!-- Home page view when no site is loaded -->
+      <div id="home-page" class="home-page">
+        <div class="home-logo-bg"></div>
+        <div class="home-card">
+          <img src="icon.png" class="home-logo" alt="WAPI Logo">
+          <h2 class="home-title">WAPI <span>Browser</span></h2>
+          <p class="home-subtitle">Explorez le web en toute sécurité</p>
+          
+          <form id="home-search-form" class="home-search-box">
+            <select id="engine-select" class="engine-select">
+              <option value="google">Google</option>
+              <option value="bing">Bing</option>
+              <option value="duckduckgo">DuckDuckGo</option>
+            </select>
+            <input type="text" id="home-search-input" placeholder="Rechercher sur le web..." required>
+            <button type="submit" class="home-search-btn">Rechercher</button>
+          </form>
+        </div>
+      </div>
+
+      <webview id="web-view" class="hidden" src="" preload="../webview-preload.js"></webview>
+    </main>
+
+    <!-- Status Bar at the bottom -->
+    <footer class="browser-footer">
+      <div id="status-text">Prêt</div>
+      <div class="quick-stats">
+        <span id="quick-ip">--</span> | <span id="quick-mac">--</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

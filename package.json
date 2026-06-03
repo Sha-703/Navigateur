@@ -1,0 +1,19 @@
+{
+  "name": "navigateur-tp",
+  "version": "1.0.0",
+  "description": "TP Navigateur Web avec recuperation IP et MAC",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "server": "node server.js",
+    "server:prod": "NODE_ENV=production node server.js"
+  },
+  "devDependencies": {
+    "electron": "^30.0.1"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2"
+  }
+}
