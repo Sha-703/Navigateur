@@ -1,10 +1,9 @@
 // ============================================================
 // Configuration du serveur API
-// Changez cette URL pour pointer vers votre serveur distant
 // Développement : http://localhost:3000
-// Production (Render) : https://wapi-server-xxxxx.onrender.com
+// Production (Render) : https://server-navigateur.onrender.com
 // ============================================================
-const API_SERVER_URL = 'http://localhost:3000';
+const API_SERVER_URL = 'https://server-navigateur.onrender.com';
 
 const webView = document.getElementById('web-view');
 const addressForm = document.getElementById('address-form');

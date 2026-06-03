@@ -75,10 +75,10 @@ Une fois le serveur actif, l'URL sera affichée sur le dashboard Render (ex: `ht
 
 ```javascript
 // En développement
-const API_URL = 'http://localhost:3000';
+const API_SERVER_URL = 'http://localhost:3000';
 
 // En production (utiliser l'URL de Render)
-const API_URL = 'https://wapi-server-xxxxx.onrender.com';
+const API_SERVER_URL = 'https://server-navigateur.onrender.com';
 ```
 
 Ou créer une variable d'environnement pour Electron Builder.
@@ -110,10 +110,10 @@ Si vous voulez conserver les connexions entre redéploiements, configurez une ba
 
 ```bash
 # Depuis votre terminal
-curl https://wapi-server-xxxxx.onrender.com/api/connections
+curl https://server-navigateur.onrender.com/api/connections
 
 # Ou visitez dans le navigateur
-https://wapi-server-xxxxx.onrender.com/admin
+https://server-navigateur.onrender.com/admin
 ```
 
 ## 🆘 Dépannage
