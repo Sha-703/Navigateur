@@ -98,7 +98,11 @@ app.post('/api/connections', (req, res) => {
   res.status(201).json({ success: true, connection: newConnection });
 });
 
-// Redirect from /admin to the admin-panel path
+// Redirect from / and /admin to the admin-panel path
+app.get('/', (req, res) => {
+  res.redirect('/admin-panel/admin.html');
+});
+
 app.get('/admin', (req, res) => {
   res.redirect('/admin-panel/admin.html');
 });
