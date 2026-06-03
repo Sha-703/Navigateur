@@ -6,14 +6,59 @@
   "scripts": {
     "start": "electron .",
     "server": "node server.js",
-    "server:prod": "NODE_ENV=production node server.js"
+    "server:prod": "NODE_ENV=production node server.js",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --publish never",
+    "build:win-portable": "electron-builder --win portable --publish never"
   },
   "devDependencies": {
-    "electron": "^30.0.1"
+    "electron": "^30.0.1",
+    "electron-builder": "^26.8.1"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.19.2"
+  },
+  "build": {
+    "appId": "com.wapi-navigateur.app",
+    "productName": "WAPI Browser",
+    "files": [
+      "main.js",
+      "preload.js",
+      "server.js",
+      "webview-preload.js",
+      "connections-db.json",
+      "src/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "WAPI Browser"
+    }
   }
 }
