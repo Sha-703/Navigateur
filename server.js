@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
+// Quand l'app est derrière un proxy (Render), activer trust proxy
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const DB_FILE = path.join(__dirname, 'connections-db.json');
@@ -81,12 +83,15 @@ app.post('/api/connections', (req, res) => {
   }
 
   const db = readDatabase();
-  
+  // IP observée par le serveur (peut provenir de X-Forwarded-For si proxy)
+  const observedIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
   const newConnection = {
     id: '_' + Math.random().toString(36).substr(2, 9),
     localIp,
     mac: mac.toUpperCase(),
     publicIp: publicIp || 'Inconnu',
+    observedIp,
     timestamp: new Date().toISOString(),
     userAgent: req.headers['user-agent'] || 'Unknown'
   };
