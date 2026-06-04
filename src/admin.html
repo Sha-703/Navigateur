@@ -76,6 +76,22 @@
       box-shadow: 0 6px 20px var(--accent-glow);
     }
 
+    .logout-btn {
+      background: rgba(239, 68, 68, 0.8);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, 1);
+      transform: translateY(-2px);
+    }
+
     /* Stats Cards */
     .stats-grid {
       display: grid;
@@ -220,13 +236,113 @@
       color: var(--text-muted);
       font-style: italic;
     }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .modal.hidden {
+      display: none;
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    .modal-header h2 {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+    }
+
+    .detail-header {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .detail-row {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .detail-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .detail-value {
+      font-family: monospace;
+      color: #a5b4fc;
+    }
+
+    .details-btn {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      font-size: 13px;
+    }
+
+    .details-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px var(--accent-glow);
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
       <h1>Tableau de Bord <span>WAPI</span></h1>
-      <button id="refresh-btn" class="refresh-btn">Actualiser ↻</button>
+      <div style="display: flex; gap: 12px;">
+        <button id="refresh-btn" class="refresh-btn">Actualiser ↻</button>
+        <button id="logout-btn" class="logout-btn">Déconnexion</button>
+      </div>
     </header>
 
     <!-- Stats -->
@@ -262,18 +378,34 @@
       <table id="connections-table">
         <thead>
           <tr>
-            <th>Date / Heure</th>
             <th>Adresse MAC</th>
             <th>IP Locale</th>
             <th>IP Publique</th>
+            <th>Nombre de Connexions</th>
+            <th>Dernière Connexion</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="table-body">
           <!-- Dynamically populated -->
         </tbody>
       </table>
-      <div id="empty-state" class="empty-state hidden">Aucune connexion ne correspond aux critères de recherche.</div>
+      <div id="empty-state" class="empty-state hidden">Aucun utilisateur ne correspond aux critères de recherche.</div>
     </div>
+
+    <!-- Details Modal -->
+    <div id="details-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Détails de l'Utilisateur</h2>
+          <button id="close-modal-btn" class="close-btn">&times;</button>
+        </div>
+        <div id="modal-details" class="modal-body">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="admin-renderer.js"></script>

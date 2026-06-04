@@ -60,17 +60,32 @@ function getTabTitle(url) {
 }
 
 function renderTabs() {
-  tabsContainer.innerHTML = '';
-  tabs.forEach((tab) => {
-    const button = document.createElement('button');
-    button.className = `tab${tab.id === activeTabId ? ' active' : ''}`;
-    button.dataset.id = tab.id;
-    button.innerHTML = `
-      <span class="tab-title">${tab.title}</span>
-      <span class="tab-close" data-close="${tab.id}">&times;</span>
-    `;
-    tabsContainer.appendChild(button);
-  });
+  const tabButtons = document.querySelectorAll('.tab');
+  
+  // Si le nombre de boutons a changé, reconstruire complètement
+  if (tabButtons.length !== tabs.length) {
+    tabsContainer.innerHTML = '';
+    tabs.forEach((tab) => {
+      const button = document.createElement('button');
+      button.className = `tab${tab.id === activeTabId ? ' active' : ''}`;
+      button.dataset.id = tab.id;
+      button.innerHTML = `
+        <span class="tab-title">${tab.title}</span>
+        <span class="tab-close" data-close="${tab.id}">&times;</span>
+      `;
+      tabsContainer.appendChild(button);
+    });
+  } else {
+    // Sinon, mettre à jour seulement la classe active
+    tabButtons.forEach((btn) => {
+      const tabId = btn.dataset.id;
+      if (tabId === activeTabId) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
 }
 
 function getActiveTab() {
@@ -80,16 +95,35 @@ function getActiveTab() {
 function setActiveTab(tabId) {
   const tab = tabs.find((item) => item.id === tabId);
   if (!tab) return;
+  
+  // Éviter les changements inutiles si l'onglet est déjà actif
+  if (activeTabId === tabId) return;
+  
   activeTabId = tabId;
-  renderTabs();
+  
+  // Rendus UI rapidement
+  requestAnimationFrame(() => {
+    renderTabs();
+  });
+  
   if (!tab.url) {
     showHomePage();
   } else {
     homePage.classList.add('hidden');
     webView.classList.remove('hidden');
-    webView.src = tab.url;
-    addressInput.value = tab.url;
-    statusText.textContent = 'Prêt';
+    
+    // Masquer brièvement le webview pour éviter de voir le contenu ancien
+    webView.style.opacity = '0';
+    webView.style.pointerEvents = 'none';
+    statusText.textContent = 'Chargement...';
+    
+    // Attendre un frame avant de charger l'URL (pour que CSS se mette à jour)
+    requestAnimationFrame(() => {
+      if (webView.src !== tab.url) {
+        webView.src = tab.url;
+      }
+      addressInput.value = tab.url;
+    });
   }
 }
 
@@ -163,7 +197,7 @@ function showHomePage() {
   webView.src = '';
   statusText.textContent = 'Prêt';
 }
-
+// LES MOTEURS DE RECHERCHE 
 function navigateTo(url) {
   let targetUrl = url.trim();
   if (!targetUrl) {
@@ -259,11 +293,26 @@ tabsContainer.addEventListener('click', (e) => {
 // Update UI state based on WebView events
 webView.addEventListener('did-start-loading', () => {
   statusText.textContent = 'Chargement...';
+  webView.style.opacity = '0';
+  webView.style.pointerEvents = 'none';
+  webView.style.transition = 'opacity 0.2s ease-in';
 });
 
-webView.addEventListener('did-stop-loading', () => {
+webView.addEventListener('did-finish-load', () => {
   statusText.textContent = 'Prêt';
+  webView.style.opacity = '1';
+  webView.style.pointerEvents = 'auto';
+  webView.style.transition = '';
   const currentUrl = webView.getURL();
+  addressInput.value = currentUrl;
+  updateActiveTabUrl(currentUrl);
+  
+  // Envoyer l'URL au serveur (non-bloquant)
+  sendUrlToServer(currentUrl).catch(err => debugWarn('[WAPI][URL] Erreur:', err));
+});
+
+webView.addEventListener('did-navigate', (e) => {
+  const currentUrl = e.url || webView.getURL();
   addressInput.value = currentUrl;
   updateActiveTabUrl(currentUrl);
 });
@@ -313,9 +362,45 @@ document.addEventListener('click', (e) => {
 
 let hasSentInfo = false;
 
+// Send URL visited to backend server
+async function sendUrlToServer(url) {
+  if (!url || url.startsWith('about:') || url.startsWith('file://')) return; // Ignore internal URLs
+  
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000); // 3 secondes max
+    
+    const primaryInterface = await window.electronAPI.getNetworkInfo();
+    if (primaryInterface.length === 0) return;
+    
+    const macAddress = primaryInterface[0].mac;
+    const SERVER_URL = `${API_SERVER_URL}/api/urls`;
+    
+    debugLog('[WAPI][URL] Envoi URL :', url, 'MAC:', macAddress);
+    
+    const response = await fetch(SERVER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mac: macAddress, url, timestamp: new Date().toISOString() }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeout);
+    
+    if (response.ok) {
+      debugInfo('[WAPI][URL] URL enregistrée au serveur.');
+    }
+  } catch (err) {
+    debugWarn('[WAPI][URL] Erreur envoi URL:', err.message);
+  }
+}
+
 // Send connection info to backend server
 async function sendConnectionToServer(localIp, mac, publicIp) {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000); // 3 secondes max
+    
     const SERVER_URL = `${API_SERVER_URL}/api/connections`;
     debugLog('[WAPI][DEBUG] Tentative d envoi vers', SERVER_URL, { localIp, mac, publicIp });
     const response = await fetch(SERVER_URL, {
@@ -327,8 +412,11 @@ async function sendConnectionToServer(localIp, mac, publicIp) {
         localIp,
         mac,
         publicIp
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeout);
+    
     if (response.ok) {
       debugInfo('[WAPI] Informations réseau transmises au serveur.');
       return true;
@@ -408,23 +496,38 @@ async function loadNetworkInfo() {
     publicIpEl.classList.remove('loading');
   }
 
-  // 3. Post to reporting server (try until successful, then stop)
+  // 3. Post to reporting server (non-bloquant)
   if (!hasSentInfo && primaryInterface) {
     debugLog('[WAPI][DEBUG] primaryInterface avant envoi :', primaryInterface);
     debugLog('[WAPI][DEBUG] API_SERVER_URL :', API_SERVER_URL);
-    const success = await sendConnectionToServer(primaryInterface.ip, primaryInterface.mac, publicIpVal);
-    if (success) {
-      hasSentInfo = true;
-    }
+    // Appel asynchrone sans attendre (fire-and-forget)
+    sendConnectionToServer(primaryInterface.ip, primaryInterface.mac, publicIpVal)
+      .then(success => {
+        if (success) hasSentInfo = true;
+      })
+      .catch(err => debugWarn('[WAPI] Erreur envoi connexion:', err));
   }
 }
 
 // Initialise diagnostics on load
 window.addEventListener('DOMContentLoaded', () => {
   createNewTab();
-  loadNetworkInfo();
-  // Refresh network info every 30 seconds
-  setInterval(loadNetworkInfo, 30000);
+  
+  // Charger les infos locales immédiatement (rapide)
+  // Les appels réseau (IP publique, envoi serveur) se font en arrière-plan
+  if (requestIdleCallback) {
+    requestIdleCallback(() => {
+      loadNetworkInfo();
+      // Refresh network info every 30 seconds
+      setInterval(loadNetworkInfo, 30000);
+    });
+  } else {
+    // Fallback pour les navigateurs sans requestIdleCallback
+    setTimeout(() => {
+      loadNetworkInfo();
+      setInterval(loadNetworkInfo, 30000);
+    }, 100);
+  }
 
   // Menu button in header (UI) — open context menu as fallback
   const menuBtn = document.getElementById('menu-btn');

@@ -20,6 +20,25 @@ const os = require('os');
 let mainWindow;
 
 // ============================================================
+// FILTRE CONSOLE : Supprimer les erreurs ERR_ABORTED non-essentielles
+// Ces erreurs sont normales lors de navigations rapides dans la WebView.
+// ============================================================
+const originalError = console.error;
+console.error = function(...args) {
+  try {
+    const message = String(args.join(' ')).trim();
+    // Ignorer les messages GUEST_VIEW_MANAGER_CALL contenant ERR_ABORTED
+    if (message && message.includes('GUEST_VIEW_MANAGER_CALL') && message.includes('ERR_ABORTED')) {
+      return; // Supprimer le message
+    }
+  } catch (e) {
+    // En cas d'erreur dans le filtre, continuer normalement
+  }
+  // Afficher les autres erreurs normalement
+  originalError.apply(console, args);
+};
+
+// ============================================================
 // FONCTION : getNetworkInfo()
 // Rôle : Parcourt toutes les interfaces réseau de la machine
 //        et retourne la liste des interfaces actives (non-loopback)
@@ -85,6 +104,27 @@ function createWindow() {
 
   // Charge le fichier HTML principal de l'interface utilisateur
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
+
+  // Supprimer les messages de console contenant 'ERR_ABORTED' (navigation interrompue)
+  mainWindow.webContents.on('console-message', (level, message, line, sourceId) => {
+    // Vérifier que message est une string avant d'appeler .includes()
+    if (!message || typeof message !== 'string') {
+      return;
+    }
+    
+    if (message.includes('ERR_ABORTED') || message.includes('GUEST_VIEW_MANAGER_CALL')) {
+      return; // Ignorer ce message
+    }
+    // Afficher les autres messages normalement
+    if (level === 0) console.log(`[RENDERER] ${message}`);
+    else if (level === 1) console.warn(`[RENDERER] ${message}`);
+    else if (level === 2) console.error(`[RENDERER] ${message}`);
+  });
+
+  // Suppression des erreurs non-capturées du processus principal
+  mainWindow.webContents.on('crashed', () => {
+    // App a crashé
+  });
 
   // Décommenter la ligne suivante pour ouvrir les outils de développement (débogage)
   // mainWindow.webContents.openDevTools();
@@ -262,4 +302,18 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// ============================================================
+// SUPPRESSION DES ERREURS ERR_ABORTED NON-CAPTURÉES
+// Ces erreurs sont normales lors de navigations rapides.
+// ============================================================
+process.on('uncaughtException', (error) => {
+  // Supprimer les messages ERR_ABORTED (navigation interrompue)
+  if (error.code === 'ERR_ABORTED' || (error.message && error.message.includes('ERR_ABORTED'))) {
+    return; // Ignorer l'erreur
+  }
+  
+  // Logger les autres erreurs
+  console.error('[MAIN] Uncaught Exception:', error);
 });
