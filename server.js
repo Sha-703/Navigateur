@@ -102,6 +102,15 @@ app.get('/login.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'src', 'login.html'));
 });
 
+// Redirect from / and /admin to the login page
+app.get('/', (req, res) => {
+  res.redirect('/login.html');
+});
+
+app.get('/admin', (req, res) => {
+  res.redirect('/login.html');
+});
+
 // Serve other static files (login-renderer.js, etc) from src directory
 app.use('/', express.static(path.join(__dirname, 'src'), {
   extensions: ['html', 'js', 'css']
