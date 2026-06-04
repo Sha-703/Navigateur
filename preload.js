@@ -51,6 +51,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Ouvrir le dossier d'un téléchargement (path absolu)
-  openPath: (filePath) => ipcRenderer.invoke('open-path', filePath)
+  openPath: (filePath) => ipcRenderer.invoke('open-path', filePath),
+
+  // Afficher le menu contextuel en connaissant l'URL du lien cliqué (si présente)
+  showLinkContextMenu: (linkUrl) => ipcRenderer.send('show-link-context-menu', linkUrl || null),
+
+  // Écouter la demande du main process d'ouvrir une URL dans un nouvel onglet
+  onOpenInNewTab: (callback) => {
+    ipcRenderer.on('open-in-new-tab', (event, url) => {
+      try { callback(url); } catch (e) { /* ignore */ }
+    });
+  },
 
 });

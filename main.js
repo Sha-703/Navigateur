@@ -152,7 +152,7 @@ app.whenReady().then(() => {
     }
   });
 
-  // Gestionnaire IPC pour afficher le menu contextuel
+  // Gestionnaire IPC pour afficher le menu contextuel (sans lien)
   ipcMain.on('show-context-menu', () => {
     if (!mainWindow) return;
 
@@ -167,6 +167,44 @@ app.whenReady().then(() => {
       { type: 'separator' },
       { label: 'Ouvrir les outils de développement', click: () => mainWindow.webContents.toggleDevTools() }
     ];
+
+    const menu = Menu.buildFromTemplate(menuTemplate);
+    menu.popup({ window: mainWindow });
+  });
+
+  // Gestionnaire IPC pour afficher le menu contextuel avec les options de lien
+  ipcMain.on('show-link-context-menu', (event, linkUrl) => {
+    if (!mainWindow) return;
+
+    const menuTemplate = [];
+
+    // Options spécifiques au lien (si on a cliqué sur un lien)
+    if (linkUrl) {
+      menuTemplate.push(
+        { label: '🔗 Ouvrir le lien dans un nouvel onglet', click: () => {
+            mainWindow.webContents.send('open-in-new-tab', linkUrl);
+          }
+        },
+        { label: '📋 Copier l\'adresse du lien', click: () => {
+            const { clipboard } = require('electron');
+            clipboard.writeText(linkUrl);
+          }
+        },
+        { type: 'separator' }
+      );
+    }
+
+    // Options générales de navigation
+    menuTemplate.push(
+      { label: '← Retour', click: () => mainWindow.webContents.goBack(), enabled: mainWindow.webContents.canGoBack() },
+      { label: '→ Avancer', click: () => mainWindow.webContents.goForward(), enabled: mainWindow.webContents.canGoForward() },
+      { label: '↺ Recharger la page', click: () => mainWindow.webContents.reload() },
+      { type: 'separator' },
+      { label: 'Copier', role: 'copy' },
+      { label: 'Coller', role: 'paste' },
+      { type: 'separator' },
+      { label: '🛠 Outils de développement', click: () => mainWindow.webContents.toggleDevTools() }
+    );
 
     const menu = Menu.buildFromTemplate(menuTemplate);
     menu.popup({ window: mainWindow });

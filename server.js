@@ -16,6 +16,37 @@ const URLS_FILE = path.join(__dirname, 'urls-db.json');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const TOKEN_EXPIRY_HOURS = 24; // Durée de validité du token (heures)
 
+// ============================================================
+// FONCTION : Géolocalisation IP
+// Utilise l'API ip-api.com (gratuite, 45 req/min)
+// ============================================================
+async function geolocateIP(ipAddress) {
+  try {
+    // Ne pas géolocaliser les IPs privées ou invalides
+    if (!ipAddress || ipAddress.startsWith('127.') || ipAddress.startsWith('192.168.') || ipAddress.startsWith('10.')) {
+      return { status: 'private_ip' };
+    }
+
+    const response = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,country,city,lat,lon,isp`);
+    const data = await response.json();
+    
+    if (data.status === 'success') {
+      return {
+        status: 'success',
+        country: data.country,
+        city: data.city,
+        latitude: data.lat,
+        longitude: data.lon,
+        isp: data.isp
+      };
+    }
+    return { status: 'failed' };
+  } catch (error) {
+    console.error('Erreur géolocalisation:', error.message);
+    return { status: 'error', message: error.message };
+  }
+}
+
 // Configuration CORS pour accepter les requêtes du client Electron
 const corsOptions = {
   origin: function (origin, callback) {
@@ -203,7 +234,7 @@ app.get('/api/connections', (req, res) => {
   res.json(enriched);
 });
 
-// Route to get users summary (grouped by MAC)
+// Route to get users summary (grouped by MAC) with geolocation
 app.get('/api/users', (req, res) => {
   const db = readDatabase();
   const urlsDb = readUrlsDatabase();
@@ -221,12 +252,18 @@ app.get('/api/users', (req, res) => {
         firstSeen: conn.timestamp,
         lastSeen: conn.timestamp,
         connections: [],
-        urls: []
+        urls: [],
+        geolocation: conn.geolocation // Inclure la géolocalisation
       };
     }
     acc[key].count += 1;
     acc[key].lastSeen = conn.timestamp;
     acc[key].connections.push(conn);
+    
+    // Mettre à jour la géolocalisation si elle est disponible
+    if (conn.geolocation && !acc[key].geolocation) {
+      acc[key].geolocation = conn.geolocation;
+    }
     
     return acc;
   }, {});
@@ -246,8 +283,8 @@ app.get('/api/users', (req, res) => {
   res.json(users);
 });
 
-// Route to save a connection
-app.post('/api/connections', (req, res) => {
+// Route to save a connection with geolocation
+app.post('/api/connections', async (req, res) => {
   const { localIp, mac, publicIp } = req.body;
 
   if (!localIp || !mac) {
@@ -258,6 +295,7 @@ app.post('/api/connections', (req, res) => {
   // IP observée par le serveur (peut provenir de X-Forwarded-For si proxy)
   const observedIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
+  // Créer la connexion de base
   const newConnection = {
     id: '_' + Math.random().toString(36).substr(2, 9),
     localIp,
@@ -265,13 +303,32 @@ app.post('/api/connections', (req, res) => {
     publicIp: publicIp || 'Inconnu',
     observedIp,
     timestamp: new Date().toISOString(),
-    userAgent: req.headers['user-agent'] || 'Unknown'
+    userAgent: req.headers['user-agent'] || 'Unknown',
+    geolocation: null // Sera rempli asynchronement
   };
 
-  db.unshift(newConnection); // Add to the beginning of the array (most recent first)
+  db.unshift(newConnection);
   writeDatabase(db);
 
   console.log(`[+] Nouvelle connexion enregistrée : IP=${localIp}, MAC=${mac}`);
+  
+  // Géolocaliser l'IP publique en arrière-plan (non-bloquant)
+  if (publicIp && publicIp !== 'Inconnu') {
+    geolocateIP(publicIp).then(geoData => {
+      if (geoData.status === 'success') {
+        newConnection.geolocation = {
+          country: geoData.country,
+          city: geoData.city,
+          latitude: geoData.latitude,
+          longitude: geoData.longitude,
+          isp: geoData.isp
+        };
+        writeDatabase(db); // Sauvegarder les données mises à jour
+        console.log(`[🌍] Géolocalisation : ${newConnection.mac} → ${geoData.city}, ${geoData.country}`);
+      }
+    }).catch(err => console.error('[⚠️] Erreur géolocalisation:', err));
+  }
+
   res.status(201).json({ success: true, connection: newConnection });
 });
 
@@ -282,6 +339,87 @@ app.get('/', (req, res) => {
 
 app.get('/admin', (req, res) => {
   res.redirect('/login.html');
+});
+
+// ============================================================
+// ENDPOINT : GET /api/geolocation/:ip
+// Retourne les données de géolocalisation pour une IP donnée
+// ============================================================
+app.get('/api/geolocation/:ip', async (req, res) => {
+  const ipAddress = req.params.ip;
+  
+  if (!ipAddress) {
+    return res.status(400).json({ error: 'IP address required' });
+  }
+
+  const geoData = await geolocateIP(ipAddress);
+  res.json(geoData);
+});
+
+// ============================================================
+// ENDPOINT : POST /api/sync
+// Synchroniser les données de l'utilisateur (histoire, favoris, mots de passe)
+// ============================================================
+app.post('/api/sync', (req, res) => {
+  try {
+    const { userId, history, bookmarks, passwords } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+    
+    // Créer ou mettre à jour le fichier de sync de l'utilisateur
+    const userSyncFile = path.join(__dirname, `user-sync-${userId}.json`);
+    const syncData = {
+      userId,
+      history: history || [],
+      bookmarks: bookmarks || [],
+      passwords: passwords || [],
+      syncedAt: new Date().toISOString()
+    };
+    
+    fs.writeFileSync(userSyncFile, JSON.stringify(syncData, null, 2));
+    
+    res.json({ success: true, message: 'Données synchronisées' });
+  } catch (error) {
+    console.error('Erreur sync:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// ENDPOINT : GET /auth/google
+// Simule l'authentification Google (redirection + callback)
+// En production, vous devriez utiliser google-auth-library
+// ============================================================
+app.get('/auth/google', (req, res) => {
+  // Simulated Google OAuth response for demo
+  // En production, implémenter l'OAuth flow réel avec Google
+  const mockUser = {
+    id: 'google-' + Math.random().toString(36).substr(2, 9),
+    name: 'Demo User',
+    email: 'user@gmail.com',
+    picture: 'https://ui-avatars.com/api/?name=Demo+User&background=6366f1&color=fff',
+    token: 'demo-token-' + Date.now()
+  };
+  
+  // Retourner une page HTML qui envoie le message au parent
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head><title>Google Auth</title></head>
+    <body>
+      <h2>Connexion en cours...</h2>
+      <script>
+        window.opener.postMessage({
+          type: 'GOOGLE_AUTH_SUCCESS',
+          user: ${JSON.stringify(mockUser)}
+        }, '*');
+        window.close();
+      </script>
+    </body>
+    </html>
+  `);
 });
 
 app.listen(PORT, () => {

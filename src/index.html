@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' http://localhost:3000 https://server-navigateur.onrender.com https://api.ipify.org https://www.google.com https://www.bing.com https://duckduckgo.com">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' http://localhost:3000 https://server-navigateur.onrender.com https://api.ipify.org https://api.mymemory.translated.net https://www.google.com https://www.bing.com https://duckduckgo.com">
   <title>WAPI - Navigateur Réseau</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -17,15 +17,45 @@
         <button id="forward-btn" class="nav-btn" title="Suivant">&rarr;</button>
         <button id="reload-btn" class="nav-btn" title="Actualiser">&#x21bb;</button>
         <button id="home-btn" class="nav-btn" title="Accueil">&#x2302;</button>
-        <button id="new-tab-btn" class="nav-btn" title="Nouvel onglet">+</button>
-        <button id="downloads-btn" class="nav-btn" title="Téléchargements">⇣</button>
       </div>
 
       <form id="address-form" class="address-bar-container">
         <input type="text" id="address-input" placeholder="Rechercher ou saisir une URL (ex: https://google.com)" required>
         <button type="submit" class="go-btn">Visiter</button>
       </form>
+
       <div class="header-actions">
+        <div id="profile-section" class="profile-section">
+          <button id="login-btn" class="nav-btn" title="Connexion">👤</button>
+          <div id="profile-menu" class="profile-menu hidden">
+            <div class="profile-header">
+              <img id="profile-avatar" src="" alt="Avatar" class="profile-avatar">
+              <div class="profile-info">
+                <div id="profile-name" class="profile-name">Connectez-vous</div>
+                <div id="profile-email" class="profile-email"></div>
+              </div>
+            </div>
+            
+            <!-- Menu Actions (Historique, Favoris, etc) -->
+            <div class="profile-section-divider"></div>
+            <div class="profile-menu-actions">
+              <button id="menu-history-btn" class="profile-menu-btn">⏱️ Historique</button>
+              <button id="menu-bookmark-btn" class="profile-menu-btn">⭐ Favoris</button>
+              <button id="menu-downloads-btn" class="profile-menu-btn">⇣ Téléchargements</button>
+              <button id="menu-password-btn" class="profile-menu-btn">🔑 Mots de passe</button>
+              <button id="menu-translate-btn" class="profile-menu-btn">🌐 Traduction</button>
+            </div>
+            
+            <!-- Account Actions -->
+            <div class="profile-section-divider"></div>
+            <div class="profile-actions">
+              <button id="sync-now-btn" class="profile-action-btn" style="display: none;">↻ Synchroniser</button>
+              <button id="view-profile-btn" class="profile-action-btn" style="display: none;">👤 Profil</button>
+              <button id="logout-btn" class="profile-action-btn" style="display: none;">🚪 Déconnexion</button>
+              <button id="login-google-btn" class="profile-action-btn">🔑 Se connecter avec Google</button>
+            </div>
+          </div>
+        </div>
         <button id="menu-btn" class="menu-btn" title="Menu">☰</button>
       </div>
 
@@ -33,6 +63,7 @@
 
     <div class="tab-bar">
       <div id="tabs" class="tabs"></div>
+      <button id="new-tab-btn" class="tab-btn" title="Nouvel onglet">+</button>
     </div>
 
     <!-- Network Info Panel (Collapsible / Overlay) -->
@@ -70,6 +101,117 @@
       </div>
     </div>
 
+    <!-- Translation Panel -->
+    <div id="translation-panel" class="network-panel hidden">
+      <div class="panel-header">
+        <h3>🌐 Traduction</h3>
+        <button id="close-translation-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="panel-content">
+        <div class="translation-controls">
+          <label for="target-language">Langue cible :</label>
+          <select id="target-language" class="language-select">
+            <option value="en">English</option>
+            <option value="fr" selected>Français</option>
+            <option value="es">Español</option>
+            <option value="de">Deutsch</option>
+            <option value="it">Italiano</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+            <option value="zh">中文</option>
+            <option value="ru">Русский</option>
+            <option value="ar">العربية</option>
+            <option value="hi">हिन्दी</option>
+            <option value="ko">한국어</option>
+          </select>
+          <button id="apply-translation-btn" class="translation-btn">Traduire la page</button>
+          <button id="reset-translation-btn" class="translation-btn secondary">Texte original</button>
+        </div>
+        <div id="translation-status" class="translation-status"></div>
+      </div>
+    </div>
+
+    <!-- History Panel -->
+    <div id="history-panel" class="network-panel hidden">
+      <div class="panel-header">
+        <h3>⏱️ Historique</h3>
+        <button id="close-history-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="panel-content">
+        <div class="history-controls">
+          <input type="text" id="history-search" placeholder="Rechercher l'historique..." class="search-input">
+          <button id="clear-history-btn" class="secondary-btn">Effacer tout</button>
+        </div>
+        <div id="history-list" class="item-list">
+          <div class="loading-spinner">Aucun historique pour le moment.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bookmarks Panel -->
+    <div id="bookmarks-panel" class="network-panel hidden">
+      <div class="panel-header">
+        <h3>⭐ Favoris</h3>
+        <button id="close-bookmarks-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="panel-content">
+        <div class="bookmarks-controls">
+          <button id="add-current-bookmark-btn" class="secondary-btn">+ Ajouter aux favoris</button>
+          <input type="text" id="bookmarks-search" placeholder="Rechercher les favoris..." class="search-input">
+        </div>
+        <div id="bookmarks-list" class="item-list">
+          <div class="loading-spinner">Aucun favori pour le moment.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Password Manager Panel -->
+    <div id="password-panel" class="network-panel hidden">
+      <div class="panel-header">
+        <h3>🔑 Gestionnaire de Mots de Passe</h3>
+        <button id="close-password-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="panel-content">
+        <div class="password-controls">
+          <input type="text" id="passwords-search" placeholder="Rechercher les mots de passe..." class="search-input">
+        </div>
+        <div id="passwords-list" class="item-list">
+          <div class="loading-spinner">Aucun mot de passe enregistré.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Password Save Prompt Panel -->
+    <div id="password-save-prompt" class="network-panel hidden" style="position: fixed; bottom: 20px; right: 20px; width: 350px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+      <div class="panel-header">
+        <h3>💾 Enregistrer le mot de passe ?</h3>
+        <button id="close-prompt-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="panel-content">
+        <p id="password-prompt-domain" style="margin: 12px 0; font-size: 14px; color: var(--text-secondary);"></p>
+        <div class="password-prompt-actions" style="display: flex; gap: 8px; margin-top: 16px;">
+          <button id="save-password-btn" class="secondary-btn" style="flex: 1;">Enregistrer</button>
+          <button id="not-now-password-btn" class="secondary-btn" style="flex: 1;">Plus tard</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Password Suggestion Panel -->
+    <div id="password-suggestion-panel" class="network-panel hidden" style="position: fixed; bottom: 20px; right: 20px; width: 350px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+      <div class="panel-header">
+        <h3>🔒 Suggérer un mot de passe ?</h3>
+        <button id="close-suggestion-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="panel-content">
+        <div id="suggested-password-display" style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px; font-family: monospace; word-break: break-all; margin: 12px 0;"></div>
+        <div class="password-suggestion-actions" style="display: flex; gap: 8px; margin-top: 16px;">
+          <button id="use-suggested-password-btn" class="secondary-btn" style="flex: 1;">Utiliser</button>
+          <button id="regenerate-password-btn" class="secondary-btn" style="flex: 1;">Régénérer</button>
+          <button id="close-suggestion-prompt-btn" class="secondary-btn" style="flex: 1;">Fermer</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Webview container -->
     <main class="webview-container">
       <!-- Home page view when no site is loaded -->
@@ -91,8 +233,6 @@
           </form>
         </div>
       </div>
-
-      <webview id="web-view" class="hidden" src="" preload="../webview-preload.js"></webview>
     </main>
 
     <!-- Status Bar at the bottom -->
