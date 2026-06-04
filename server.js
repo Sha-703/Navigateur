@@ -25,6 +25,7 @@ const corsOptions = {
       'http://127.0.0.1:3000',
       'http://localhost:*',
       'http://127.0.0.1:*',
+      'https://server-navigateur.onrender.com',
       process.env.CLIENT_URL // URL du client Electron (ex: https://votre-app.com)
     ].filter(Boolean);
 
