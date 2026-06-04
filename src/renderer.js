@@ -112,18 +112,13 @@ function setActiveTab(tabId) {
     homePage.classList.add('hidden');
     webView.classList.remove('hidden');
     
-    // Masquer brièvement le webview pour éviter de voir le contenu ancien
-    webView.style.opacity = '0';
-    webView.style.pointerEvents = 'none';
     statusText.textContent = 'Chargement...';
     
-    // Attendre un frame avant de charger l'URL (pour que CSS se mette à jour)
-    requestAnimationFrame(() => {
-      if (webView.src !== tab.url) {
-        webView.src = tab.url;
-      }
-      addressInput.value = tab.url;
-    });
+    // Charger immédiatement l'URL sans masquer le contenu du webview
+    if (webView.src !== tab.url) {
+      webView.src = tab.url;
+    }
+    addressInput.value = tab.url;
   }
 }
 
@@ -293,16 +288,10 @@ tabsContainer.addEventListener('click', (e) => {
 // Update UI state based on WebView events
 webView.addEventListener('did-start-loading', () => {
   statusText.textContent = 'Chargement...';
-  webView.style.opacity = '0';
-  webView.style.pointerEvents = 'none';
-  webView.style.transition = 'opacity 0.2s ease-in';
 });
 
 webView.addEventListener('did-finish-load', () => {
   statusText.textContent = 'Prêt';
-  webView.style.opacity = '1';
-  webView.style.pointerEvents = 'auto';
-  webView.style.transition = '';
   const currentUrl = webView.getURL();
   addressInput.value = currentUrl;
   updateActiveTabUrl(currentUrl);
